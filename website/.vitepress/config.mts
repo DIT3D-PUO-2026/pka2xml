@@ -3,7 +3,7 @@ import { defineConfig } from "vitepress";
 const siteTitle = "pka2xml";
 const siteDescription =
   "Decrypt and encrypt Packet Tracer .pka / .pkt files online — no installation required.";
-const siteUrl = "https://dit2d-puo-2026.github.io/pka2xml/";
+const siteUrl = "https://dit3d-puo-2026.github.io/pka2xml/";
 const previewImageUrl = `${siteUrl}meta.png`;
 const previewImageAlt = "pka2xml – Packet Tracer File Converter preview";
 
@@ -77,7 +77,7 @@ export default defineConfig({
     ],
 
     socialLinks: [
-      { icon: "github", link: "https://github.com/DIT2D-PUO-2026/pka2xml" },
+      { icon: "github", link: "https://github.com/DIT3D-PUO-2026/pka2xml" },
     ],
 
     footer: {
