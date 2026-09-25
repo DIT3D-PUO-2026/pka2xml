@@ -270,6 +270,12 @@ function buildPathDict(
 /** Matches any character outside Python string.printable (mirrors check_items.py re.sub). */
 const NON_PRINTABLE_CHARS_REGEX = /[^\x20-\x7E\t\n\r\x0b\x0c]/g
 
+/** Compare XML attribute values without treating formatting whitespace as data. */
+function comparableValue(value: string | null): string | null {
+  if (value === null) return null
+  return value.replace(/\r\n?/g, '\n').trim()
+}
+
 function parseXml(xmlStr: string): Results {
   // Strip non-printable characters (mirrors the re.sub in check_items.py)
   const cleaned = xmlStr.replace(NON_PRINTABLE_CHARS_REGEX, '')
@@ -306,7 +312,9 @@ function parseXml(xmlStr: string): Results {
 
     let match: boolean | null = null
     if (initialVal !== null) {
-      match = initialVal === expectedVal
+      // XML serializers may add surrounding line breaks/spaces to attributes.
+      // Those formatting differences must not turn a correct item into a failure.
+      match = comparableValue(initialVal) === comparableValue(expectedVal)
     }
 
     checkItems.push({
