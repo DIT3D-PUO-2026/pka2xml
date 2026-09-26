@@ -7,7 +7,7 @@ title: Assessment Items
 Use this tool to **inspect assessment check items** inside a Packet Tracer `.pka` / `.pkt` file and see which items are incorrect compared to the expected values — so you know exactly what to fix.
 
 ::: tip How it works
-Upload a `.pka` / `.pkt` file (it will be decrypted automatically) or a plain `.xml` file that was already decrypted. The tool reads the `COMPARISONS` and `INITIALSETUP` sections, finds every node with `checkType` 1 or 2, and compares the current initial value against the expected value.
+Upload a `.pka` / `.pkt` file (it will be decrypted automatically) or a plain `.xml` file that was already decrypted. The tool reads graded nodes from `COMPARISONS` and compares expected values with the current student network configuration in the first `NETWORK` snapshot.
 :::
 
 ::: warning Experimental Features
@@ -28,7 +28,7 @@ You can the `inspect` that total `Assessment Items` on your `cisco`
 |--------|-------------|
 | **Name** | The human-readable label of the check item. |
 | **Path** | The node path built from `<ID>` values — useful for locating the item inside the raw XML. |
-| **Incorrect (Current)** | The value currently stored in `INITIALSETUP` for this node. |
+| **Incorrect (Current)** | The value currently stored in the student network configuration. |
 | **Correct (Expected)** | The target value defined in `COMPARISONS` (`nodeValue` attribute). |
 
 ### Check types
@@ -41,8 +41,7 @@ You can the `inspect` that total `Assessment Items` on your `cisco`
 Items with `checkType` 0 are informational only and are **not** included in the comparison.
 
 ::: details Tips
-- **Need Fixing** items are the ones where `INITIALSETUP` has a different value than `COMPARISONS`. These are the nodes you need to update in the PKA file to make the activity correct.
+- **Need Fixing** items are the ones where the student network value differs from `COMPARISONS`. These are the nodes you need to update in the PKA file to make the activity correct.
 - **Already Correct** items already have the right value — no action needed.
-- **Not in Initial Setup** items exist only in `COMPARISONS` but have no corresponding initial value. They may be newly added check items.
 - After fixing, use the **[PKA / PKT Converter](/tool)** to re-encrypt your edited XML back to a `.pka` file.
 :::

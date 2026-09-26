@@ -84,10 +84,6 @@
           <div class="summary-number">{{ results.incorrectCount }}</div>
           <div class="summary-label">Need Fixing</div>
         </div>
-        <div class="summary-card summary-card--missing">
-          <div class="summary-number">{{ results.missingCount }}</div>
-          <div class="summary-label">Not in Initial Setup</div>
-        </div>
       </div>
 
       <!-- Incorrect items -->
@@ -136,31 +132,6 @@
                 <td><strong>{{ item.name }}</strong></td>
                 <td class="path-cell"><code>{{ item.path }}</code></td>
                 <td class="value-cell value-cell--good">{{ item.correct }}</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </template>
-
-      <!-- Missing items -->
-      <template v-if="results.missingItems.length > 0">
-        <h3 class="section-heading section-heading--missing">
-          ⚠️ Items only in COMPARISONS — not in initial setup ({{ results.missingItems.length }})
-        </h3>
-        <div class="table-wrapper">
-          <table class="items-table">
-            <thead>
-              <tr>
-                <th>Name</th>
-                <th>Path</th>
-                <th>Expected Value</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="item in results.missingItems" :key="item.path">
-                <td><strong>{{ item.name }}</strong></td>
-                <td class="path-cell"><code>{{ item.path }}</code></td>
-                <td class="value-cell">{{ item.correct }}</td>
               </tr>
             </tbody>
           </table>
@@ -330,7 +301,6 @@ function buildDeviceStateDict(doc: XMLDocument): Record<string, DeviceState> {
 
 function currentValueForPath(
   path: string,
-  setupValue: string | null,
   deviceStates: Record<string, DeviceState>
 ): string | null {
   const hostnameMatch = path.match(/^\/Network\/([^/]+)\/Host Name$/)
@@ -349,7 +319,7 @@ function currentValueForPath(
     }
   }
 
-  return setupValue
+  return null
 }
 
 function parseXml(xmlStr: string): Results {
@@ -365,17 +335,11 @@ function parseXml(xmlStr: string): Results {
   }
 
   const comparisonsEl = doc.querySelector('COMPARISONS')
-  const setupEl = doc.querySelector('INITIALSETUP')
-
   const compNodes = comparisonsEl
     ? Array.from(comparisonsEl.querySelectorAll(':scope > NODE'))
     : []
-  const setupNodes = setupEl
-    ? Array.from(setupEl.querySelectorAll(':scope > NODE'))
-    : []
 
   const compDict = buildPathDict(compNodes)
-  const setupDict = buildPathDict(setupNodes)
   const deviceStates = buildDeviceStateDict(doc)
 
   const checkItems: CheckItem[] = []
@@ -383,9 +347,7 @@ function parseXml(xmlStr: string): Results {
   for (const [path, compInfo] of Object.entries(compDict)) {
     if (compInfo.checkType !== '1' && compInfo.checkType !== '2') continue
 
-    const setupInfo = setupDict[path]
-    const setupVal = setupInfo ? setupInfo.nodeValue : null
-    const initialVal = currentValueForPath(path, setupVal, deviceStates)
+    const initialVal = currentValueForPath(path, deviceStates)
     const expectedVal = compInfo.nodeValue
 
     let match: boolean | null = null
