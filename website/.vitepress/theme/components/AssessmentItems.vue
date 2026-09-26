@@ -242,6 +242,11 @@ interface NodeInfo {
   name: string
 }
 
+type DeviceState = {
+  hostname: string | null
+  interfaces: Record<string, { ipAddress: string; subnetMask: string }>
+}
+
 function buildPathDict(
   nodes: Element[],
   path = '',
@@ -276,6 +281,77 @@ function comparableValue(value: string | null): string | null {
   return value.replace(/\r\n?/g, '\n').trim()
 }
 
+function buildDeviceStateDict(doc: XMLDocument): Record<string, DeviceState> {
+  const states: Record<string, DeviceState> = {}
+  // Packet Tracer stores student, initial, and answer snapshots in separate
+  // NETWORK blocks. The first block is the student's current network.
+  const devicesEl = doc.querySelector('NETWORK > DEVICES')
+  if (!devicesEl) return states
+
+  for (const device of Array.from(devicesEl.querySelectorAll(':scope > DEVICE'))) {
+    const name = device.querySelector(':scope > ENGINE > NAME')?.textContent?.trim()
+    if (!name) continue
+
+    const hostnameLine = Array.from(device.querySelectorAll(':scope > RUNNINGCONFIG > LINE'))
+      .map(line => line.textContent?.trim() ?? '')
+      .find(line => /^hostname\s+/i.test(line))
+    const interfaces: DeviceState['interfaces'] = {}
+    let interfaceName: string | null = null
+
+    for (const lineEl of Array.from(device.querySelectorAll(':scope > RUNNINGCONFIG > LINE'))) {
+      const line = lineEl.textContent?.trim() ?? ''
+      const interfaceMatch = line.match(/^interface\s+(.+)$/i)
+      if (interfaceMatch) {
+        interfaceName = interfaceMatch[1]
+        interfaces[interfaceName] = { ipAddress: '0.0.0.0', subnetMask: '0.0.0.0' }
+        continue
+      }
+      if (!interfaceName) continue
+
+      const addressMatch = line.match(/^ip address\s+(\S+)\s+(\S+)$/i)
+      if (addressMatch) {
+        interfaces[interfaceName] = {
+          ipAddress: addressMatch[1],
+          subnetMask: addressMatch[2],
+        }
+      } else if (/^no ip address$/i.test(line)) {
+        interfaces[interfaceName] = { ipAddress: '0.0.0.0', subnetMask: '0.0.0.0' }
+      }
+    }
+
+    states[name] = {
+      hostname: hostnameLine ? hostnameLine.replace(/^hostname\s+/i, '').trim() : null,
+      interfaces,
+    }
+  }
+
+  return states
+}
+
+function currentValueForPath(
+  path: string,
+  setupValue: string | null,
+  deviceStates: Record<string, DeviceState>
+): string | null {
+  const hostnameMatch = path.match(/^\/Network\/([^/]+)\/Host Name$/)
+  if (hostnameMatch) {
+    const currentHostname = deviceStates[hostnameMatch[1]]?.hostname
+    if (currentHostname !== null && currentHostname !== undefined) return currentHostname
+  }
+
+  const interfaceMatch = path.match(/^\/Network\/([^/]+)\/Ports\/([^/]+)\/(IP Address|Subnet Mask)$/)
+  if (interfaceMatch) {
+    const currentInterface = deviceStates[interfaceMatch[1]]?.interfaces[interfaceMatch[2]]
+    if (currentInterface) {
+      return interfaceMatch[3] === 'IP Address'
+        ? currentInterface.ipAddress
+        : currentInterface.subnetMask
+    }
+  }
+
+  return setupValue
+}
+
 function parseXml(xmlStr: string): Results {
   // Strip non-printable characters (mirrors the re.sub in check_items.py)
   const cleaned = xmlStr.replace(NON_PRINTABLE_CHARS_REGEX, '')
@@ -300,6 +376,7 @@ function parseXml(xmlStr: string): Results {
 
   const compDict = buildPathDict(compNodes)
   const setupDict = buildPathDict(setupNodes)
+  const deviceStates = buildDeviceStateDict(doc)
 
   const checkItems: CheckItem[] = []
 
@@ -307,7 +384,8 @@ function parseXml(xmlStr: string): Results {
     if (compInfo.checkType !== '1' && compInfo.checkType !== '2') continue
 
     const setupInfo = setupDict[path]
-    const initialVal = setupInfo ? setupInfo.nodeValue : null
+    const setupVal = setupInfo ? setupInfo.nodeValue : null
+    const initialVal = currentValueForPath(path, setupVal, deviceStates)
     const expectedVal = compInfo.nodeValue
 
     let match: boolean | null = null
